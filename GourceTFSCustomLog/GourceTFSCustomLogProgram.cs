@@ -204,9 +204,20 @@ namespace GourceTFSCustomLog
             var includePackages = true;
             if (!string.IsNullOrEmpty(includePackagesText))
             {
-                includePackages = includePackagesText.ToLower().Equals("yes");
+                includePackages = !includePackagesText.ToLower().Equals("n");
             }
             # endregion include packages
+
+            # region include bins
+            Console.WriteLine("\nFinally, should we include any \"bin\" folders (assuming your project has any and defaults to true). Y/N");
+            var includeBinsText = Console.ReadLine();
+            var includeBins = true;
+            if (!string.IsNullOrEmpty(includeBinsText))
+            {
+                includeBins = !includeBinsText.ToLower().Equals("n");
+            }
+            Console.WriteLine(includeBins ? "yes include bins" : "no, don't include bins!!");
+            # endregion include bins
 
             # region read from source
             Console.WriteLine("\n\nStarting the query and writing the log.");
@@ -235,6 +246,7 @@ namespace GourceTFSCustomLog
                         var fileName = ConvertFileExtensionToLowerCase(change.Item.ServerItem);
 
                         if (fileName.Contains("/packages") && !includePackages) continue;
+                        else if (fileName.Contains("/bin") && !includeBins) continue;
 
                         file.WriteLine(string.Format("{0}|{1}|{2}|{3}", unixTime, changeSet.OwnerDisplayName, changeTypeCode, fileName));
                     }
