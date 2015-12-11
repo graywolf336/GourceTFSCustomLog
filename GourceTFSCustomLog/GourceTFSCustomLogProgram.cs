@@ -247,6 +247,7 @@ namespace GourceTFSCustomLog
 
                         if (fileName.Contains("/packages") && !includePackages) continue;
                         else if (fileName.Contains("/bin") && !includeBins) continue;
+                        else if (Path.GetExtension(fileName).Equals(string.Empty)) continue;
 
                         file.WriteLine(string.Format("{0}|{1}|{2}|{3}", unixTime, changeSet.OwnerDisplayName, changeTypeCode, fileName));
                     }
