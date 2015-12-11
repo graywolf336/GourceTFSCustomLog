@@ -15,22 +15,53 @@ namespace GourceTFSCustomLog
         {
             Console.WriteLine("Hello there! Welcome to the custom log generator for gource from TFS/VSO!\nWe need some information first...");
 
+            # region tfs web url
             Console.WriteLine("\n\nWhat is the web url of the TFS/VSO instance?");
-            Console.WriteLine("HINT: \"DefaultCollection/\" is usually at the end OR leave blank for Valorem Consultant Group's:");
-            var tfsUrl = Console.ReadLine();
-            if (string.IsNullOrEmpty(tfsUrl)) tfsUrl = "https://vcg.visualstudio.com/DefaultCollection/";
+            Console.WriteLine("HINT: \"DefaultCollection/\" is usually at the end:");
+            Uri tfsUri = null;
+            var tfsUrl = string.Empty;
+            var tfsUrlCount = 0;
+            while (string.IsNullOrEmpty(tfsUrl))
+            {
+                tfsUrlCount++;
+                tfsUrl = Console.ReadLine();
 
-            Uri uri;
-            try
-            {
-                uri = new Uri(tfsUrl);
+                if (string.IsNullOrEmpty(tfsUrl))
+                {
+                    if (tfsUrlCount == 10)
+                    {
+                        Console.WriteLine("No web url of the TFS/VSO instance entered for ten times, press any key to exit.");
+                        Console.ReadKey();
+                        return;
+                    }
+                    else
+                    {
+                        Console.WriteLine("How do you get to the TFS/VSO instance via a web browser including the \"DefaultCollection/\"?");
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        tfsUri = new Uri(tfsUrl);
+                    }
+                    catch
+                    {
+                        if (tfsUrlCount == 10)
+                        {
+                            Console.WriteLine("\n\nThe provided web url is not valid!!");
+                            Console.ReadKey();
+                            return;
+                        }
+                        else
+                        {
+                            Console.WriteLine("The provided web url is not valid, please try again.");
+                            tfsUrl = string.Empty;
+                        }
+                    }
+                }
             }
-            catch
-            {
-                Console.WriteLine("\n\nThe provided web url is not valid!!");
-                Console.ReadKey();
-                return;
-            }
+            # endregion tfs web url
 
             # region Username and Password
             //The username and password don't need to be entered if they're giving us a local folder.
@@ -132,7 +163,7 @@ namespace GourceTFSCustomLog
             # endregion local path
 
             # region saved log location
-            Console.WriteLine("\nAnd finally! What directory should we save the custom log file to?");
+            Console.WriteLine("\nWhat directory should we save the custom log file to?");
             var directoryForLog = string.Empty;
             var directoryForLogCount = 0;
             while (string.IsNullOrEmpty(directoryForLog))
@@ -167,10 +198,20 @@ namespace GourceTFSCustomLog
             var logPath = string.Format(@"{0}\{1}-{2}-{3}_{4}-{5}-{6}.txt", directoryForLog, now.Month, now.Day, now.Year, now.Hour, now.Minute, now.Second);
             # endregion saved log location
 
+            # region include packages
+            Console.WriteLine("\nFinally, should we include the packages folder (assuming your project has one and defaults to true). Y/N");
+            var includePackagesText = Console.ReadLine();
+            var includePackages = true;
+            if (!string.IsNullOrEmpty(includePackagesText))
+            {
+                includePackages = includePackagesText.ToLower().Equals("yes");
+            }
+            # endregion include packages
+
             # region read from source
             Console.WriteLine("\n\nStarting the query and writing the log.");
 
-            var tfs = new TfsTeamProjectCollection(uri);
+            var tfs = new TfsTeamProjectCollection(tfsUri);
             var versionControl = tfs.GetService<VersionControlServer>();
             var queryParams = new QueryHistoryParameters(localPath, RecursionType.Full)
             {
@@ -183,6 +224,7 @@ namespace GourceTFSCustomLog
             {
                 foreach (var changeSet in versionControl.QueryHistory(queryParams))
                 {
+                    var s = changeSet.ArtifactUri;
                     double unixTime = (int)(changeSet.CreationDate - unixTimeZero.ToLocalTime()).TotalSeconds;
 
                     foreach (var change in changeSet.Changes)
@@ -191,6 +233,9 @@ namespace GourceTFSCustomLog
                         if (string.IsNullOrEmpty(changeTypeCode)) continue;
 
                         var fileName = ConvertFileExtensionToLowerCase(change.Item.ServerItem);
+
+                        if (fileName.Contains("/packages") && !includePackages) continue;
+
                         file.WriteLine(string.Format("{0}|{1}|{2}|{3}", unixTime, changeSet.OwnerDisplayName, changeTypeCode, fileName));
                     }
                 }
